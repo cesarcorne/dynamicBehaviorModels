@@ -1,0 +1,119 @@
+
+sig  Sequence { var elts: seq Int}
+
+pred sorted[elts: seq Int] {
+	all i: elts.inds - elts.lastIdx | let i1 = i+1 | i.elts <= i1.elts
+}
+
+one sig Cnt  {var cur:  Int}
+
+pred minIdx [s: seq Int, c, i: Int] {
+	i>=c && no i1: s.inds |( i1 >= c && i1.s < i.s)
+}
+
+pred insertionStep [s: Sequence, cn: Cnt] {
+	some i: s.elts.inds |
+		minIdx[s.elts, cn.cur, i] &&
+		cn.cur' = cn.cur + 1 and
+		s.elts' = s.elts ++ ((cn.cur') -> i.(s.elts)) ++ (i->cn.cur.(s.elts))
+}
+
+pred InsertionSort [s: Sequence, cn: Cnt] {
+	cn.cur = 0 and
+	(insertionStep[s,cn] until cn.cur' = s.elts'.lastIdx)
+}
+
+assert SortWorks {
+	all s: Sequence | one cn : Cnt |
+	always(InsertionSort[s,cn] => sorted[s.elts] )
+}
+
+
+one sig Temp{
+	var idx: Int,
+	var min: Int,
+	var minIdx: Int
+}
+
+pred findMin[s: Sequence]{
+	Temp.idx' = Temp.idx +1 and
+	(Temp.idx.(s.elts) < Temp.min) => (Temp.min' = Temp.idx.(s.elts) and Temp.minIdx' = Temp.idx)
+	else (Temp.min' = Temp.min and Temp.minIdx' = Temp.minIdx)
+}
+
+
+
+assert findMinWorks {
+	all s: Sequence | always 
+	(Temp.idx = Cnt.cur and
+	Temp.min = Cnt.cur.(s.elts) and
+	Temp.minIdx = Cnt.cur and
+	(findMin[s] until (Temp.idx = s.elts.lastIdx)))
+	=>	eventually minIdx[s.elts, Cnt.cur, Temp.minIdx]
+}
+
+check SortWorks for 4 Sequence, exactly 5 steps
+check SortWorks for 4 Sequence, exactly 10 steps
+check SortWorks for 4 Sequence, exactly 15 steps
+check SortWorks for 4 Sequence, exactly 20 steps
+check SortWorks for 4 Sequence, exactly 25 steps
+check SortWorks for 4 Sequence, exactly 30 steps
+check SortWorks for 4 Sequence, exactly 40 steps
+check SortWorks for 4 Sequence, exactly 50 steps
+check SortWorks for 4 Sequence, exactly 75 steps
+check SortWorks for 4 Sequence, exactly 100 steps
+
+check SortWorks for 5 Sequence, exactly 5 steps
+check SortWorks for 5 Sequence, exactly 10 steps
+check SortWorks for 5 Sequence, exactly 15 steps
+check SortWorks for 5 Sequence, exactly 20 steps
+check SortWorks for 5 Sequence, exactly 25 steps
+check SortWorks for 5 Sequence, exactly 30 steps
+check SortWorks for 5 Sequence, exactly 40 steps
+check SortWorks for 5 Sequence, exactly 50 steps
+check SortWorks for 5 Sequence, exactly 75 steps
+check SortWorks for 5 Sequence, exactly 100 steps
+
+check SortWorks for 6 Sequence, exactly 5 steps
+check SortWorks for 6 Sequence, exactly 10 steps
+check SortWorks for 6 Sequence, exactly 15 steps
+check SortWorks for 6 Sequence, exactly 20 steps
+check SortWorks for 6 Sequence, exactly 25 steps
+check SortWorks for 6 Sequence, exactly 30 steps
+check SortWorks for 6 Sequence, exactly 40 steps
+check SortWorks for 6 Sequence, exactly 50 steps
+check SortWorks for 6 Sequence, exactly 75 steps
+check SortWorks for 6 Sequence, exactly 100 steps
+
+check findMinWorks for 4 Sequence, exactly 5 steps
+check findMinWorks for 4 Sequence, exactly 10 steps
+check findMinWorks for 4 Sequence, exactly 15 steps
+check findMinWorks for 4 Sequence, exactly 20 steps
+check findMinWorks for 4 Sequence, exactly 25 steps
+check findMinWorks for 4 Sequence, exactly 30 steps
+check findMinWorks for 4 Sequence, exactly 40 steps
+check findMinWorks for 4 Sequence, exactly 50 steps
+check findMinWorks for 4 Sequence, exactly 75 steps
+check findMinWorks for 4 Sequence, exactly 100 steps
+
+check findMinWorks for 5 Sequence, exactly 5 steps
+check findMinWorks for 5 Sequence, exactly 10 steps
+check findMinWorks for 5 Sequence, exactly 15 steps
+check findMinWorks for 5 Sequence, exactly 20 steps
+check findMinWorks for 5 Sequence, exactly 25 steps
+check findMinWorks for 5 Sequence, exactly 30 steps
+check findMinWorks for 5 Sequence, exactly 40 steps
+check findMinWorks for 5 Sequence, exactly 50 steps
+check findMinWorks for 5 Sequence, exactly 75 steps
+check findMinWorks for 5 Sequence, exactly 100 steps
+
+check findMinWorks for 6 Sequence, exactly 5 steps
+check findMinWorks for 6 Sequence, exactly 10 steps
+check findMinWorks for 6 Sequence, exactly 15 steps
+check findMinWorks for 6 Sequence, exactly 20 steps
+check findMinWorks for 6 Sequence, exactly 25 steps
+check findMinWorks for 6 Sequence, exactly 30 steps
+check findMinWorks for 6 Sequence, exactly 40 steps
+check findMinWorks for 6 Sequence, exactly 50 steps
+check findMinWorks for 6 Sequence, exactly 75 steps
+check findMinWorks for 6 Sequence, exactly 100 steps

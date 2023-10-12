@@ -1,0 +1,364 @@
+/*Inductive chord*/
+one sig Network { base: set Node } { # base = 3 }
+
+abstract sig Node {
+   var succ: lone Node,
+   var succ2: lone Node,
+   var prdc: lone Node,
+   var bestSucc: lone Node,
+   nextNode: lone Node,
+   lt: set Node
+}
+{
+   always (
+      (Member[succ] && Member[succ2] => bestSucc = succ)
+   && (Member[succ] && NonMember[succ2] => bestSucc = succ)
+   && (NonMember[succ] && Member[succ2] => bestSucc = succ2)
+   && (NonMember[succ] && NonMember[succ2] => no bestSucc)
+   )
+   always (Member[this] || NonMember[this])
+}
+
+one sig N0, N1, N2, N3, N4, N5, N6, N7 extends Node { } // extend as necessary
+
+fact nodeOrdering {
+   nextNode = N0 -> N1 + N1 -> N2 + N2 -> N3 + N3 -> N4 + N4 -> N5 + N5 -> N6 + N6 -> N7    
+   lt = ^nextNode
+}
+
+pred Member [n: Node] {  some n.succ }
+pred NonMember [n: Node] {
+   no n.succ && no n.prdc && no n.succ2
+}
+
+
+pred Between [n1, n2, n3: Node]{
+   n3 in n1.lt => (n2 in n1.lt && n3 in n2.lt)
+            else  (n2 in n1.lt || n3 in n2.lt)
+}
+
+run {} for 4 but exactly 2 steps
+
+/* ========================================================================
+THE INVARIANT
+   Valid is the inductive invariant.  Its conjuncts OneOrderedRing and
+ConnectedAppendages were previously known to be necessary.  The pseudocode
+form of the operations guarantees FullSuccessorList automatically.
+======================================================================== */
+
+pred Valid [] { 
+   OneOrderedRing [] 
+   && ConnectedAppendages [] 
+   && FullSuccessorList []
+   && BaseNotSkipped []
+}
+
+pred OneOrderedRing [] {
+   let ringMembers = { n: Node | n in n.^(bestSucc) } |
+      Network.base in ringMembers      -- at least one ring containing base
+   && (all disj n1, n2: ringMembers | n1 in n2.^(bestSucc) ) 
+                                                        -- at most one ring
+   && (all disj n1, n2, n3: ringMembers |         
+         n2 = n1.bestSucc => ! Between[n1,n3,n2]          -- ordered ring
+      )
+}
+
+pred ConnectedAppendages [] { 
+   let members = { n: Node | Member[n] } |
+   let ringMembers = { n: members | n in n.^(bestSucc) } |
+      all na: members - ringMembers |                           -- na is in
+         some nc: ringMembers | nc in na.^(bestSucc)      -- an appendage
+                                                        -- yet reaches ring
+}
+
+pred FullSuccessorList [] { 
+   all n: Node | Member[n] => some n.succ2  }
+
+pred BaseNotSkipped [] {
+   all n: Node |              -- no successor list "skips over" a base node
+      Member[n] =>     
+      {  no b: Network.base | 
+            (  Between[n, b, n.succ] && b ! in (n + n.succ)  )
+         no b: Network.base | 
+            (  Between[n.succ, b, n.succ2] 
+            && b ! in (n.succ + n.succ2)  
+            )
+      }
+}
+
+pred StructuredSuccessorList [] {
+   all n: Node | Member[n] => {
+      Between[n,n.succ,n.succ2]            -- successor list is ordered
+        -- automatically guarantees that adjacent list entries are distinct
+      n != n.succ2                   -- non-adjacent entries are distinct
+}  }
+
+assert ValidImpliesStructuredSuccessorList {
+   always (Valid[] => StructuredSuccessorList[]) }
+check ValidImpliesStructuredSuccessorList for 8 but 1 steps   -- OK
+
+pred HasBestSuccessors [] {
+   all n: Node | Member[n] => some n.bestSucc  }
+
+assert ValidImpliesHasBestSuccessors {
+   always (Valid[] => HasBestSuccessors[]) }
+check ValidImpliesHasBestSuccessors for 8 but 1 steps         -- OK
+
+
+/* ========================================================================
+CORRECTNESS PROPERTIES
+======================================================================== */
+
+pred ConsistentPredecessors [] {
+   let members = { n: Node | Member[n] } |
+      all n1, n2: members | n2 = n1.succ <=> n1 = n2.prdc
+}
+
+pred Reconciled [] { let members = { n: Node | Member[n] } |
+   all n: members | 
+         Member[n.succ] 
+      && Member[n.succ2]
+      && n.succ2 = (n.succ).succ
+}
+
+pred Ideal [] {  
+   Valid[] && ConsistentPredecessors[] && Reconciled[] } 
+
+pred AllInRing [] { 
+   let members = { n: Node | some n.succ } |
+      all n1, n2: members | n2 in n1.^(succ)
+}
+
+assert IdealImpliesAllInRing { always (Ideal[] => AllInRing[]) }
+check IdealImpliesAllInRing for 8 but 1 steps                 -- OK
+
+pred Succ2Correctness [] { let members = { n: Node | Member[n] } |
+   all n: members |
+      (Member[n.succ2] && n.succ2 != n.bestSucc)
+   => n.succ2 = (n.bestSucc).bestSucc
+}
+
+assert IdealImpliesSucc2Correct { always
+   (Ideal[] => Succ2Correctness[]) }
+check IdealImpliesSucc2Correct for 8 but 1 steps       
+
+/* ========================================================================
+SPECIFICATION OF EVENTS
+======================================================================== */
+
+pred FailEvent[n : Node]{
+	Member[n]
+	n !in Network.base
+	(all m: Node | m.succ = n => 
+				(no m.succ2 || (m.succ2 != n && Member[m.succ2])))
+	(all m: Node | m.succ2 = n => Member[m.succ])
+	no n.succ'
+	no n.succ2'
+	no n.prdc'
+	(all m: Node - n | m.succ' = m.succ && m.succ2' = m.succ2 && m.prdc' = m.prdc)
+}
+
+pred JoinLookupEvent[n: Node, newSucc: Node]{
+	NonMember[n] &&
+	some oldMember: Node | {
+		Member[oldMember]
+		Between[oldMember,n,oldMember.succ]
+		newSucc = oldMember.succ
+	}
+	(all m: Node | m.succ' = m.succ && m.succ2' = m.succ2 && m.prdc' = m.prdc)
+}
+
+
+pred JoinEvent[n: Node, newSucc: Node]{
+	NonMember[n]
+	Member[newSucc]
+	no b: Network.base | Between[n,b,newSucc]
+	n.succ' = newSucc
+	n.succ2' = newSucc.succ
+	n.prdc' = n.prdc --frame
+	(all m: Node - n | m.succ' = m.succ && m.succ2' = m.succ2 && m.prdc' = m.prdc)
+}
+
+
+pred StabilizeFromOldSuccessorEvent[n: Node, newSucc: Node]{
+	Member[n]
+	(n.succ.prdc != newSucc or n.succ2 != n.succ.succ)
+	(Member[n.succ])
+	=> (
+		newSucc' = n.succ.prdc
+		&& n.succ' = n.succ
+		&& n.succ2' = n.succ.succ
+		&& n.prdc' = n.prdc
+	)
+	else (
+		newSucc' = n.succ2.prdc
+		&& n.succ' = n.succ2
+		&& n.succ2' = n.succ2.succ
+		&& n.prdc' = n.prdc
+	)
+	(all m: Node - n | m.succ' = m.succ && m.succ2' = m.succ2 && m.prdc' = m.prdc)
+}
+
+pred StabilizeFromNewSuccessorEvent[n: Node, newSucc: Node]{
+	Member[n]
+	Member[newSucc]
+	(n.succ != newSucc or n.succ2 != newSucc.succ)
+	Between[n,newSucc,n.succ]
+	and (
+		n.succ' = newSucc
+		&& n.succ2' = (newSucc).succ
+		&& n.prdc' = n.prdc
+	)
+	(all m: Node - n | m.succ' = m.succ && m.succ2' = m.succ2 && m.prdc' = m.prdc)
+}
+
+pred RectifyEvent[n: Node, newPrdc: Node]{
+	Member[n]
+	(no n.prdc || NonMember[n.prdc] || Between[n.prdc,newPrdc,n])
+	=> n.prdc' = newPrdc
+		&& n. succ' = n.succ
+		&& n.succ2' = n.succ2
+	else n.prdc' = n.prdc
+		&& n.succ' = n.succ
+		&& n.succ2' = n.succ2
+	(all m: Node - n | m.succ' = m.succ && m.succ2' = m.succ2 && m.prdc' = m.prdc)
+}
+
+pred IsFail[n: Node]{
+	Valid[] && FailEvent[n] 
+}
+run IsFail for 4 but 2 steps
+
+assert JoinLookupSatisfiesJoinPrecondition {
+	(some n, lookup: Node | 
+	(Valid[]
+	&& Member[lookup]
+	&& JoinLookupEvent[n,lookup])
+	=> after no b: Network.base | Between[n, b, lookup])
+}
+
+check JoinLookupSatisfiesJoinPrecondition for 4 but 2 steps
+
+pred IsJoinLookupAndJoin[n, lookup: Node]{
+	Valid[]
+	JoinLookupEvent[n,lookup] 
+	&& after JoinEvent[n,lookup]
+}
+
+run IsJoinLookupAndJoin for 8 but 3 steps
+
+/* ========================================================================
+SAFETY: PRESERVATION OF THE INDUCTIVE INVARIANT
+   The network must be initialized in a state that satisfies Valid.
+======================================================================== */
+
+assert FailPreservesValidity{
+	(Valid[] && (some n: Node | FailEvent[n]) => after Valid[])
+}
+
+check FailPreservesValidity for 8 but exactly 2 steps
+
+assert JoinPreservesValidity{
+	(Valid[] && (some n, newSucc: Node | JoinEvent[n,newSucc]) => after Valid[])
+}
+check JoinPreservesValidity for 8 but exactly 2 steps
+
+assert SFOSPreservesValidity{	
+	(Valid[] && (some n, newSucc: Node | StabilizeFromOldSuccessorEvent[n,newSucc]) => after Valid[])
+}
+check SFOSPreservesValidity for 8 but exactly 2 steps
+
+assert SFNSPreservesValidity{
+	(Valid[] && (some n, newSucc : Node | StabilizeFromNewSuccessorEvent[n,newSucc]) => after Valid[])
+}
+check SFNSPreservesValidity for 8 but exactly 2 steps
+
+
+assert RectifyPreservesValidity {
+	(Valid[] && (some n, newPrdc : Node |RectifyEvent[n,newPrdc]) => after Valid[])
+}
+check RectifyPreservesValidity for 8 but exactly 2 steps
+
+
+/* ========================================================================
+EFFECTIVENESS PREDICATES
+  
+======================================================================== */
+
+pred EffectiveSFOSenabled [n: Node] { 
+      Member[n] 
+      (  (  Member[n.succ]
+         && n.succ2 != (n.succ).succ
+         )
+      || ! Member[n.succ]
+      )
+}
+
+assert EffectiveSFOScorrectness{
+	all n: Node |
+	(
+		Valid[]
+		&& EffectiveSFOSenabled[n]
+		&& some newSucc: Node | StabilizeFromOldSuccessorEvent[n, newSucc]
+	) => ( n.succ' != n.succ
+		|| n.succ2' != n.succ2)
+}
+check EffectiveSFOScorrectness for 8 but exactly 2 steps
+
+pred EffectiveSFNSenabled [n: Node]{
+	let newSucc = (n.succ).prdc | {
+		Member[n]
+		some newSucc
+		Member[newSucc]
+		Between[n,newSucc,n.succ]
+	}
+}
+
+assert EffectiveSFNScorrectness{
+	all n: Node |(
+	Valid[]
+	&& EffectiveSFNSenabled[n]
+	&& some newSucc: Node | newSucc = n.succ.prdc &&  StabilizeFromNewSuccessorEvent[n, newSucc] 
+	) =>
+	n.succ' != n.succ
+}
+check EffectiveSFNScorrectness for 8 but exactly 1 steps
+
+pred EffectiveRectifyEnabled [n, newPrdc: Node]{
+	Member[n]
+	Member[newPrdc]
+	n = newPrdc.succ
+	(no n.prdc || NonMember[n.prdc] || Between[n.prdc,newPrdc,n])
+}
+
+
+assert EffectiveRectifyCorrectness {
+	all n, newPred: Node |
+	((Valid[]
+	&& EffectiveRectifyEnabled[n, newPred]
+	&& RectifyEvent[n, newPred])
+	=> n.prdc' != n.prdc)
+}
+check EffectiveRectifyCorrectness for 8 but 2 steps
+/* ========================================================================
+SAFETY: IMPROVABILITY AND STABILITY
+ 
+======================================================================== */
+
+pred NetworkIsImprovable[]{
+	(some n: Node | EffectiveSFOSenabled[n])
+	|| (some n: Node | EffectiveSFNSenabled[n])
+	|| (some n, newPrdc: Node | EffectiveRectifyEnabled[n, newPrdc])
+}
+
+assert ValidNetworkIsImprovable {
+	(Valid[] && ! Ideal[]) => NetworkIsImprovable
+}
+check ValidNetworkIsImprovable for 8 but 1 steps
+
+assert IdealNetworkIsNotImprovable {
+	(Valid[] && Ideal[]) => !NetworkIsImprovable[]
+}
+check IdealNetworkIsNotImprovable for 4 but 1 steps
+
+

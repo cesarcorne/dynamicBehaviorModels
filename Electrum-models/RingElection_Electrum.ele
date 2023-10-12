@@ -1,0 +1,80 @@
+open util/ordering[Id]
+
+sig Id {}
+
+sig Process {
+  succ: Process,
+  var toSend: set Id, // mind the 'var' keyword
+  id : Id } 
+
+fact distinctIds { id in Process lone -> Id }
+
+fact ring { all p: Process | Process in p.^succ }
+
+var sig elected in Process {} // mind the 'var' keyword
+
+fact defineElected {
+  no elected  // empty in the inital state
+  always elected' = { p: Process | (after p.id in p.toSend) and p.id !in p.toSend } }
+
+pred communication [p: Process] {
+  some identifier: p.toSend {
+    p.toSend' = p.toSend - identifier
+    p.succ.toSend' = p.succ.toSend + (identifier - prevs[p.succ.id]) } }
+
+pred init { all p: Process | p.toSend = p.id }
+
+pred doNothing [p: Process] { p.toSend' = p.toSend }
+
+fact traces {
+  init
+  always all p: Process | communication[p] or communication[p.~succ] or doNothing [p] }
+
+pred consistent {}
+
+--run consistent for 3
+
+assert Liveness1 { some Process => eventually some elected }
+
+--check Liveness1 for 3 but 20 steps 
+
+pred progress {
+  always (some Process.toSend => after { some p: Process | not doNothing [p]}) }
+
+assert Liveness2 { (some Process && progress) => eventually some elected }
+
+check Liveness2 for 3 but 4 steps
+check Liveness2 for 4 but 5 steps
+check Liveness2 for 5 but 6 steps
+check Liveness2 for 6 but 7 steps
+check Liveness2 for 7 but 8 steps
+check Liveness2 for 8 but 9 steps
+check Liveness2 for 9 but 10 steps
+check Liveness2 for 10 but 11 steps
+
+assert Safety {
+  always all x : elected | always all y : elected | x = y }
+
+check Safety for 3 but exactly 10 steps
+check Safety for 3 but exactly 15 steps
+check Safety for 3 but exactly 20 steps
+check Safety for 3 but exactly 25 steps
+check Safety for 3 but exactly 30 steps
+check Safety for 3 but exactly 35 steps
+check Safety for 3 but exactly 40 steps
+check Safety for 3 but exactly 45 steps
+check Safety for 3 but exactly 50 steps
+check Safety for 3 but exactly 75 steps
+check Safety for 3 but exactly 100 steps
+
+check Safety for 5 but exactly 10 steps
+check Safety for 5 but exactly 15 steps
+check Safety for 5 but exactly 20 steps
+check Safety for 5 but exactly 25 steps
+check Safety for 5 but exactly 30 steps
+check Safety for 5 but exactly 35 steps
+check Safety for 5 but exactly 40 steps
+check Safety for 5 but exactly 45 steps
+check Safety for 5 but exactly 50 steps
+check Safety for 5 but exactly 75 steps
+check Safety for 5 but exactly 100 steps

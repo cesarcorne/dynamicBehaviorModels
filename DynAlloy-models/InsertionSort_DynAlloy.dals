@@ -1,0 +1,169 @@
+/**
+Case study taken from Imperative Alloy
+*/
+
+sig Sequence { elts : seq Int}
+
+pred sorted [elts : seq Int] {
+	all i: elts.inds - elts.lastIdx | let i' = i + 1 | i.elts <= i'.elts 
+}
+
+one sig Cnt { cur: Int}
+
+pred minIdx [s: seq Int, c, i: Int]{
+	i>=c && no i': s.inds | i' >= c && lt[i'.s,i.s]
+}
+
+action insertionStep [s: Sequence, c: Cnt, i: Int] {
+	pre{some i : s.elts.inds | minIdx[s.elts, c.cur, i]}
+	post{c'.cur = c.cur + 1 and 
+	s'.elts = s.elts ++ ((c.cur)->i.(s.elts)) ++ (i->c.cur.(s.elts))}
+}
+
+action init[c: Cnt]{
+pre{}
+post{c'.cur = 0}
+}
+
+program insertionSort [s: Sequence, c : Cnt] var [i: Int]{
+	init[c];
+	while (c.cur != s.elts.lastIdx) do{
+		insertionStep[s,c, i]
+	}
+}
+
+assertCorrectness sortWorks [s: Sequence, c: Cnt] {
+	pre{}
+	program{
+		call insertionSort[s,c]
+	}
+	post{sorted[s'.elts]}
+}
+
+one sig Temp{
+	idx: Int,
+	min: Int,
+	minIdx: Int
+}
+
+action nextIdx[t : Temp]{
+pre{}
+post{t'.idx = t.idx + 1}
+}
+
+action actualizeMin[s: Sequence, t: Temp]{
+pre{}
+post{t'.min = t.idx.(s.elts) and t'.minIdx = t.idx}
+}
+
+program findMin[s: Sequence, t: Temp]{
+	if (t.idx.(s.elts) < t.min) {actualizeMin[s,t]}
+	else {skip};
+        nextIdx[t]
+}
+
+
+action init2[t: Temp, c: Cnt]{
+pre{}
+post{t'.idx = c.cur and t'.min = c.cur and t'.minIdx = c.cur}
+}
+
+action actualizeElem[s: Sequence, c: Cnt, t: Temp]{
+pre{}
+post{c'.cur = c.cur +1 and s'.elts = s.elts ++ ((t.minIdx)->c.cur.(s.elts)) ++ (c.cur->t.minIdx.(s.elts))}
+}
+
+program newInsertionStep[s: Sequence, t: Temp, c:Cnt]{
+	init2[t,c];
+	while (t.idx != s.elts.lastIdx) do {
+		call findMin[s,t]
+	}; 
+	actualizeElem[s,c,t]
+}
+
+program newInsertionSort[s: Sequence, t: Temp, c: Cnt]{
+	init[c];
+	init2[t,c];
+	while (c.cur != s.elts.lastIdx) do{
+		call newInsertionStep[s,t,c]
+	}
+}
+
+
+assertCorrectness findMinWorks[s: Sequence,t: Temp, c: Cnt]{
+	pre{t.idx = c.cur and 
+		t.min = c.cur.(s.elts) and
+		t.minIdx = c.cur}
+	program{
+			while (t.idx != s.elts.lastIdx) do {
+				call findMin[s,t]		
+			}
+		}
+	post{minIdx[s'.elts,c'.cur, t'.minIdx]}
+}
+
+check sortWorks for 4 lurs exactly 5
+check sortWorks for 4 lurs exactly 10
+check sortWorks for 4 lurs exactly 15
+check sortWorks for 4 lurs exactly 20
+check sortWorks for 4 lurs exactly 25
+check sortWorks for 4 lurs exactly 30
+check sortWorks for 4 lurs exactly 40
+check sortWorks for 4 lurs exactly 50
+check sortWorks for 4 lurs exactly 75
+check sortWorks for 4 lurs exactly 100
+
+check sortWorks for 5 lurs exactly 5
+check sortWorks for 5 lurs exactly 10
+check sortWorks for 5 lurs exactly 15
+check sortWorks for 5 lurs exactly 20
+check sortWorks for 5 lurs exactly 25
+check sortWorks for 5 lurs exactly 30
+check sortWorks for 5 lurs exactly 40
+check sortWorks for 5 lurs exactly 50
+check sortWorks for 5 lurs exactly 75
+check sortWorks for 5 lurs exactly 100
+
+check sortWorks for 6 lurs exactly 5
+check sortWorks for 6 lurs exactly 10
+check sortWorks for 6 lurs exactly 15
+check sortWorks for 6 lurs exactly 20
+check sortWorks for 6 lurs exactly 25
+check sortWorks for 6 lurs exactly 30
+check sortWorks for 6 lurs exactly 40
+check sortWorks for 6 lurs exactly 50
+check sortWorks for 6 lurs exactly 75
+check sortWorks for 6 lurs exactly 100
+
+check findMinWorks for 4 Sequence lurs exactly 5
+check findMinWorks for 4 Sequence lurs exactly 10
+check findMinWorks for 4 Sequence lurs exactly 15
+check findMinWorks for 4 Sequence lurs exactly 20
+check findMinWorks for 4 Sequence lurs exactly 25
+check findMinWorks for 4 Sequence lurs exactly 30
+check findMinWorks for 4 Sequence lurs exactly 40
+check findMinWorks for 4 Sequence lurs exactly 50
+check findMinWorks for 4 Sequence lurs exactly 75
+check findMinWorks for 4 Sequence lurs exactly 100
+
+check findMinWorks for 5 Sequence lurs exactly 5
+check findMinWorks for 5 Sequence lurs exactly 10
+check findMinWorks for 5 Sequence lurs exactly 15
+check findMinWorks for 5 Sequence lurs exactly 20
+check findMinWorks for 5 Sequence lurs exactly 25
+check findMinWorks for 5 Sequence lurs exactly 30
+check findMinWorks for 5 Sequence lurs exactly 40
+check findMinWorks for 5 Sequence lurs exactly 50
+check findMinWorks for 5 Sequence lurs exactly 75
+check findMinWorks for 5 Sequence lurs exactly 100
+
+check findMinWorks for 6 Sequence lurs exactly 5
+check findMinWorks for 6 Sequence lurs exactly 10
+check findMinWorks for 6 Sequence lurs exactly 15
+check findMinWorks for 6 Sequence lurs exactly 20
+check findMinWorks for 6 Sequence lurs exactly 25
+check findMinWorks for 6 Sequence lurs exactly 30
+check findMinWorks for 6 Sequence lurs exactly 40
+check findMinWorks for 6 Sequence lurs exactly 50
+check findMinWorks for 6 Sequence lurs exactly 75
+check findMinWorks for 6 Sequence lurs exactly 100

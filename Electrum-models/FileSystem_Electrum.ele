@@ -1,0 +1,81 @@
+/**
+Case study taken from Imperative Alloy
+*/
+
+sig Name {}
+abstract sig Path {}
+sig NonEmptyPath extends Path { first: Name, rest: Path } 
+sig EmptyPath extends Path {}
+
+abstract sig INode {}
+sig DirNode extends INode { files: Name -> INode}
+one sig RootNode extends DirNode {}
+
+sig FileNode extends INode { var data: Data}
+sig Data {}
+
+one sig MVar{
+	var path:  Path,
+	var current:  INode,
+	var mdata:  Data
+}
+
+
+pred Navigate[m: MVar]{
+	m.path' = m.path.rest and
+	 m.current' = (m.path.first).(m.current.files) and
+	m.mdata' = m.mdata
+}
+	
+
+pred read [m: MVar]{
+	(Navigate[m] until 
+	(m.current' in FileNode and m.mdata' = m.current.data and 
+	m.current' = m.current and m.path' = m.path))
+}
+
+
+pred write[m: MVar]{
+	((Navigate[m]) until ((m.current' in FileNode and 
+	let file = m.current | file.data' = m.mdata)))
+}
+
+one sig Temp {var tdata: Data }
+
+assert readMatchesPriorWrite {
+	some m: MVar, t: Temp|	
+		(m.current = RootNode &&
+			no f: FileNode | f.data = m.mdata) 
+	and 
+		always (	(write[m] and
+			t.tdata' = m.mdata and
+			read[m])) => t.tdata' = m.mdata
+}
+
+
+check readMatchesPriorWrite for 4 but exactly 5 steps
+check readMatchesPriorWrite for 4 but exactly 10 steps
+check readMatchesPriorWrite for 4 but exactly 15 steps
+check readMatchesPriorWrite for 4 but exactly 20 steps
+check readMatchesPriorWrite for 4 but exactly 25 steps
+check readMatchesPriorWrite for 4 but exactly 30 steps
+check readMatchesPriorWrite for 4 but exactly 40 steps
+check readMatchesPriorWrite for 4 but exactly 50 steps
+
+check readMatchesPriorWrite for 6 but exactly 5 steps
+check readMatchesPriorWrite for 6 but exactly 10 steps
+check readMatchesPriorWrite for 6 but exactly 15 steps
+check readMatchesPriorWrite for 6 but exactly 20 steps
+check readMatchesPriorWrite for 6 but exactly 25 steps
+check readMatchesPriorWrite for 6 but exactly 30 steps
+check readMatchesPriorWrite for 6 but exactly 40 steps
+check readMatchesPriorWrite for 6 but exactly 50 steps
+
+check readMatchesPriorWrite for 8 but exactly 5 steps
+check readMatchesPriorWrite for 8 but exactly 10 steps
+check readMatchesPriorWrite for 8 but exactly 15 steps
+check readMatchesPriorWrite for 8 but exactly 20 steps
+check readMatchesPriorWrite for 8 but exactly 25 steps
+check readMatchesPriorWrite for 8 but exactly 30 steps
+check readMatchesPriorWrite for 8 but exactly 40 steps
+check readMatchesPriorWrite for 8 but exactly 50 steps

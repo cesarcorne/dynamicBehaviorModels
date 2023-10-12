@@ -1,0 +1,126 @@
+--open util/ordering[Tick] as TickOrder
+
+sig Addr { }
+sig Data { }
+
+sig Memory {
+ addrs : set Addr,
+ var map : addrs -> one Data
+}
+
+ sig MainMemory extends Memory { }
+
+sig Cache extends Memory {
+  dirty : set addrs
+}
+
+sig System {
+ var cache : Cache,
+ var main : MainMemory
+}
+
+
+pred SysWrite[s : System, d: Data, a: Addr] { 
+ s.cache'.map = s.cache.map ++ (a -> d)
+ s.cache'.dirty = s.cache.dirty + a
+ s.main'.map' = s.main.map
+}
+
+pred SysFlush[s : System, x : set Addr] { 
+ x in s.cache.addrs and
+  s.cache'.map = s.cache.map - { x->Data } 
+  s.cache'.dirty = s.cache.dirty - x 
+  MainMemory.map' = MainMemory.map ++
+    {a: x, d: Data | d = Cache.map[a]} 
+}
+
+pred DirtyInv [s : System]{
+ all a: s.cache.addrs - s.cache.dirty | 
+	s.cache.map[a] = s.main.map[a]
+}
+
+fact {
+	Init[System] 
+	always {
+	some x: set Addr |
+		SysFlush[System, x] || 
+	some a : Addr, d : Data | 
+			SysWrite[System, d, a]
+	}
+}
+
+pred Init[s : System] {
+ no s.cache.dirty
+ no s.cache.map
+ no s.main.map
+}
+
+pred freshDir [] {
+	some a : Addr { all d : Data {
+		! ((a -> d) in MainMemory.map) &&
+		! ((a -> d) in Cache.map)
+		}
+	}
+}
+
+assert DirtyInvAssertionAlloy {  
+    always DirtyInv[System]
+}
+
+check DirtyInvAssertionAlloy for 4 but exactly 5 steps
+check DirtyInvAssertionAlloy for 4 but exactly 10 steps
+check DirtyInvAssertionAlloy for 4 but exactly 15 steps
+check DirtyInvAssertionAlloy for 4 but exactly 20 steps
+check DirtyInvAssertionAlloy for 4 but exactly 25 steps
+
+check DirtyInvAssertionAlloy for 5 but exactly 5 steps
+check DirtyInvAssertionAlloy for 5 but exactly 10 steps
+check DirtyInvAssertionAlloy for 5 but exactly 15 steps
+check DirtyInvAssertionAlloy for 5 but exactly 20 steps
+check DirtyInvAssertionAlloy for 5 but exactly 25 steps
+
+check DirtyInvAssertionAlloy for 6 but exactly 5 steps
+check DirtyInvAssertionAlloy for 6 but exactly 10 steps
+check DirtyInvAssertionAlloy for 6 but exactly 15 steps
+check DirtyInvAssertionAlloy for 6 but exactly 20 steps
+check DirtyInvAssertionAlloy for 6 but exactly 25 steps
+
+
+assert FreshDirAssertion {
+     Init[System] =>
+       eventually freshDir
+  }
+
+check FreshDirAssertion for 4 but exactly 5 steps
+check FreshDirAssertion for 4 but exactly 15 steps
+check FreshDirAssertion for 4 but exactly 25 steps
+
+check FreshDirAssertion for 5 but exactly 5 steps
+check FreshDirAssertion for 5 but exactly 15 steps
+check FreshDirAssertion for 5 but exactly 25 steps
+
+check FreshDirAssertion for 6 but exactly 5 steps
+check FreshDirAssertion for 6 but exactly 15 steps
+check FreshDirAssertion for 6 but exactly 25 steps
+
+assert CacheInMain {
+ DirtyInv[System] =>always {( no System.cache.dirty => System.cache.map in System.main.map)}
+}
+
+check CacheInMain for 4 but exactly 5 steps
+check CacheInMain for 4 but exactly 10 steps
+check CacheInMain for 4 but exactly 15 steps
+check CacheInMain for 4 but exactly 20 steps
+check CacheInMain for 4 but exactly 25 steps
+
+check CacheInMain for 5 but exactly 5 steps
+check CacheInMain for 5 but exactly 10 steps
+check CacheInMain for 5 but exactly 15 steps
+check CacheInMain for 5 but exactly 20 steps
+check CacheInMain for 5 but exactly 25 steps
+
+check CacheInMain for 6 but exactly 5 steps
+check CacheInMain for 6 but exactly 10 steps
+check CacheInMain for 6 but exactly 15 steps
+check CacheInMain for 6 but exactly 20 steps
+check CacheInMain for 6 but exactly 25 steps
